@@ -2,6 +2,8 @@
 
 Endpoint Service Desk is a local help desk for a fictional organization. It gives technicians one place to triage workstation issues, check reported BitLocker and Trusted Platform Module (TPM) states, and record how each ticket was resolved. A SQLite database keeps tickets, workstation records, and status history across browser refreshes and server restarts. The demo includes 12 workstations and 20 tickets.
 
+[Watch the 57-second captioned ticket walkthrough](docs/demo.mp4).
+
 ## What you can do
 
 - Filter the queue by priority and status. Filters and page numbers are stored in the URL so you can return to the same view from a ticket.
