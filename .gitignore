@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+TestResults/
+.vs/
+.DS_Store
+.local-tools/
+web/node_modules/
+web/dist/
+web/.npm-cache/
+src/ServiceDesk.Api/servicedesk.db*
+*.local.env

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/ServiceDesk.Api/ServiceDesk.Api.csproj" />
+  <Project Path="tests/ServiceDesk.Api.Tests/ServiceDesk.Api.Tests.csproj" />
+</Solution>

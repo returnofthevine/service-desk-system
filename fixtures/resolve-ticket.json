@@ -1,0 +1,5 @@
+{
+  "expectedStatus": "in-progress",
+  "status": "resolved",
+  "note": "  Checked the reported BitLocker and TPM states. Recorded the follow-up.  "
+}
