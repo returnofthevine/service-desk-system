@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, LockKeyhole } from 'lucide-react'
 import { Notice } from '../components/Feedback'
 
-export default function SignInPage({ onSignIn }) {
+export default function SignInPage({ onSignIn, setupResult }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
 
@@ -25,11 +25,20 @@ export default function SignInPage({ onSignIn }) {
       <span className="section-icon"><LockKeyhole size={21} aria-hidden="true" /></span>
       <h1 id="sign-in-heading">Sign in</h1>
       <p className="muted sign-in-description">Use your service desk account to open the ticket queue.</p>
+      {setupResult && <Notice>{setupResult.message}</Notice>}
       {error && <Notice error>{error}</Notice>}
       <form className="field-stack" onSubmit={submit}>
         <label>
           Username
-          <input name="userName" autoComplete="username" autoCapitalize="none" spellCheck={false} required disabled={pending} />
+          <input
+            name="userName"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            defaultValue={setupResult?.userName}
+            required
+            disabled={pending}
+          />
         </label>
         <label>
           Password

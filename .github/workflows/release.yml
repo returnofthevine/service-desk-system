@@ -1,0 +1,196 @@
+name: Installable packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag to publish, such as v0.2.0. Leave blank to build and test only.'
+        type: string
+        required: false
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installable-packages-${{ inputs.release_tag || github.ref }}
+
+env:
+  RELEASE_TAG: ${{ inputs.release_tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
+
+jobs:
+  build-web:
+    name: Build browser assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Validate release tag
+        shell: bash
+        run: |
+          if [[ -n "$RELEASE_TAG" && ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'Use a release tag in the form v1.2.3.' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run lint
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+      - uses: actions/upload-artifact@v7
+        with:
+          name: browser-assets
+          path: web/dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  test-api:
+    name: API tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test EndpointServiceDesk.slnx --configuration Release
+
+  package:
+    name: Build and test ${{ matrix.runtime }}
+    needs: build-web
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: win-x64
+            runner: windows-2025
+            extension: zip
+            executable: ServiceDesk.Api.exe
+          - runtime: win-arm64
+            runner: windows-11-arm
+            extension: zip
+            executable: ServiceDesk.Api.exe
+          - runtime: osx-x64
+            runner: macos-15-intel
+            extension: tar.gz
+            executable: ServiceDesk.Api
+          - runtime: osx-arm64
+            runner: macos-15
+            extension: tar.gz
+            executable: ServiceDesk.Api
+          - runtime: linux-x64
+            runner: ubuntu-24.04
+            extension: tar.gz
+            executable: ServiceDesk.Api
+          - runtime: linux-arm64
+            runner: ubuntu-24.04-arm
+            extension: tar.gz
+            executable: ServiceDesk.Api
+    env:
+      RUNTIME: ${{ matrix.runtime }}
+      ARCHIVE: release/endpoint-service-desk-${{ matrix.runtime }}.${{ matrix.extension }}
+      EXECUTABLE: extracted/endpoint-service-desk/${{ matrix.executable }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v8
+        with:
+          name: browser-assets
+          path: web/dist
+      - name: Publish self-contained executable
+        run: >-
+          dotnet publish src/ServiceDesk.Api/ServiceDesk.Api.csproj
+          --configuration Release --runtime "$RUNTIME" --self-contained true
+          --output published
+      - name: Build release archive
+        run: python scripts/package-install.py "$RUNTIME" published web/dist release
+      - name: Extract and smoke-test the release archive
+        run: |
+          python -c 'import shutil, sys; shutil.unpack_archive(sys.argv[1], sys.argv[2])' "$ARCHIVE" extracted
+          python scripts/smoke-install.py "$EXECUTABLE"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: install-${{ matrix.runtime }}
+          path: ${{ env.ARCHIVE }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  release:
+    name: Publish tested packages
+    needs: [test-api, package]
+    if: github.ref_type == 'tag' || inputs.release_tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: install-*
+          path: release
+          merge-multiple: true
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          cd release
+          files=(
+            endpoint-service-desk-win-{x64,arm64}.zip
+            endpoint-service-desk-osx-{x64,arm64}.tar.gz
+            endpoint-service-desk-linux-{x64,arm64}.tar.gz
+          )
+          sha256sum "${files[@]}" > SHA256SUMS.txt
+
+          tag_commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq '.sha' 2>/dev/null || true)
+          if [[ -n "$tag_commit" && "$tag_commit" != "$GITHUB_SHA" ]]; then
+            echo "Tag $RELEASE_TAG belongs to another commit." >&2
+            exit 1
+          fi
+
+          if release=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --json isDraft,targetCommitish); then
+            if [[ $(jq -r '.isDraft' <<<"$release") != true ]]; then
+              echo "Release $RELEASE_TAG is already published. Its assets were left intact." >&2
+              exit 1
+            fi
+            if [[ -z "$tag_commit" && $(jq -r '.targetCommitish' <<<"$release") != "$GITHUB_SHA" ]]; then
+              echo "Draft release $RELEASE_TAG belongs to another commit." >&2
+              exit 1
+            fi
+          else
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --draft --target "$GITHUB_SHA" --title "Endpoint Service Desk $RELEASE_TAG" \
+              --generate-notes --notes-file - <<'NOTES'
+          Download the archive for your operating system and processor, extract it, and open `QUICKSTART.txt`. Each package includes the .NET runtime and the built browser interface. The macOS builds have no Developer ID signature or notarization. The Linux builds target glibc-based distributions.
+          NOTES
+          fi
+
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+            "${files[@]}" SHA256SUMS.txt
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false

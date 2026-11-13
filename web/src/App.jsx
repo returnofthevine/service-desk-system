@@ -6,6 +6,7 @@ import { Loading, Notice, ReadError } from './components/Feedback'
 import AssetsImportPage from './pages/AssetsImportPage'
 import DashboardPage from './pages/DashboardPage'
 import QueuePage from './pages/QueuePage'
+import SetupPage from './pages/SetupPage'
 import SignInPage from './pages/SignInPage'
 import TicketPage from './pages/TicketPage'
 import { useApiRead } from './useApiRead'
@@ -48,16 +49,7 @@ export default function App() {
   }
 
   const user = read.kind === 'ready' ? read.data : null
-  if (!user) {
-    return (
-      <SessionFrame>
-        <Routes>
-          <Route path="/sign-in" element={<SignInPage onSignIn={signIn} />} />
-          <Route path="*" element={<Navigate to="/sign-in" replace />} />
-        </Routes>
-      </SessionFrame>
-    )
-  }
+  if (!user) return <SessionFrame><SignedOutRoutes onSignIn={signIn} /></SessionFrame>
 
   const canEdit = user.roles.includes('Technician')
 
@@ -73,10 +65,49 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/assets/import" element={canEdit ? <AssetsImportPage /> : <Navigate to="/" replace />} />
           <Route path="/sign-in" element={<Navigate to="/" replace />} />
+          <Route path="/setup" element={<Navigate to="/" replace />} />
           <Route path="*" element={<><h1>Page not found</h1><Link to="/">Go to the queue</Link></>} />
         </Routes>
       </main>
     </>
+  )
+}
+
+function SignedOutRoutes({ onSignIn }) {
+  const { read, reload, replace } = useApiRead('/api/setup/status')
+  const [setupResult, setSetupResult] = useState(null)
+
+  async function createTechnician(body) {
+    try {
+      await writeApi('/api/setup/technician', { body })
+      setSetupResult({
+        userName: body.userName,
+        message: 'Technician account created. Sign in to continue.',
+      })
+    } catch (error) {
+      if (error.status !== 409) throw error
+      setSetupResult({ message: 'Setup is complete. Sign in with the technician account.' })
+    }
+    replace({ required: false })
+  }
+
+  if (read.kind === 'loading') return <Loading>Checking setup…</Loading>
+  if (read.kind === 'error') return <ReadError retry={reload}>{read.error.message}</ReadError>
+
+  if (read.data.required) {
+    return (
+      <Routes>
+        <Route path="/setup" element={<SetupPage onCreateTechnician={createTechnician} />} />
+        <Route path="*" element={<Navigate to="/setup" replace />} />
+      </Routes>
+    )
+  }
+
+  return (
+    <Routes>
+      <Route path="/sign-in" element={<SignInPage onSignIn={onSignIn} setupResult={setupResult} />} />
+      <Route path="*" element={<Navigate to="/sign-in" replace />} />
+    </Routes>
   )
 }
 
