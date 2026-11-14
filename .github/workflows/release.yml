@@ -68,6 +68,7 @@ jobs:
       - run: dotnet test EndpointServiceDesk.slnx --configuration Release
 
   package:
+    # Test extracted archives on their target OS and architecture before uploading them.
     name: Build and test ${{ matrix.runtime }}
     needs: build-web
     runs-on: ${{ matrix.runner }}
@@ -102,8 +103,8 @@ jobs:
             executable: ServiceDesk.Api
     env:
       RUNTIME: ${{ matrix.runtime }}
-      ARCHIVE: release/endpoint-service-desk-${{ matrix.runtime }}.${{ matrix.extension }}
-      EXECUTABLE: extracted/endpoint-service-desk/${{ matrix.executable }}
+      ARCHIVE: release/service-desk-system-${{ matrix.runtime }}.${{ matrix.extension }}
+      EXECUTABLE: extracted/service-desk-system/${{ matrix.executable }}
     defaults:
       run:
         shell: bash
@@ -141,6 +142,7 @@ jobs:
           retention-days: 14
 
   release:
+    # Only the publication job can write to the repository.
     name: Publish tested packages
     needs: [test-api, package]
     if: github.ref_type == 'tag' || inputs.release_tag != ''
@@ -161,9 +163,9 @@ jobs:
         run: |
           cd release
           files=(
-            endpoint-service-desk-win-{x64,arm64}.zip
-            endpoint-service-desk-osx-{x64,arm64}.tar.gz
-            endpoint-service-desk-linux-{x64,arm64}.tar.gz
+            service-desk-system-win-{x64,arm64}.zip
+            service-desk-system-osx-{x64,arm64}.tar.gz
+            service-desk-system-linux-{x64,arm64}.tar.gz
           )
           sha256sum "${files[@]}" > SHA256SUMS.txt
 
@@ -189,7 +191,7 @@ jobs:
             fi
           else
             gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-              --draft --target "$GITHUB_SHA" --title "Endpoint Service Desk $RELEASE_TAG" \
+              --draft --target "$GITHUB_SHA" --title "Service Desk System $RELEASE_TAG" \
               --generate-notes --notes-file - <<'NOTES'
           Download the archive for your operating system and processor, extract it, and open `QUICKSTART.txt`. Each package includes the .NET runtime and the built browser interface. The macOS builds have no Developer ID signature or notarization. The Linux builds target glibc-based distributions.
           NOTES

@@ -8,6 +8,7 @@ export default function SetupPage({ onCreateTechnician }) {
 
   async function submit(event) {
     event.preventDefault()
+    // The terminal supplies the one-time code. It stays in the request body.
     const values = new FormData(event.currentTarget)
     setPending(true)
     setErrorMessage('')
@@ -28,7 +29,7 @@ export default function SetupPage({ onCreateTechnician }) {
     <section className="panel sign-in" aria-labelledby="setup-heading">
       <span className="section-icon"><KeyRound size={21} aria-hidden="true" /></span>
       <h1 id="setup-heading">Create your technician account</h1>
-      <p className="muted sign-in-description">Use the one-time setup code shown in the terminal window that started Endpoint Service Desk.</p>
+      <p className="muted sign-in-description">Use the one-time setup code shown in the terminal window that started Service Desk System.</p>
       {errorMessage && <Notice error>{errorMessage}</Notice>}
       <form className="field-stack" onSubmit={submit}>
         <label>

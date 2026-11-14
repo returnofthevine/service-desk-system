@@ -363,19 +363,36 @@ namespace ServiceDesk.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("AssetId")
+                    b.Property<int?>("AssetId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("AssignedTechnician")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AssignedTechnicianId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("endpoint");
+
                     b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequesterId")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ResolvedAtUtc")
@@ -392,9 +409,21 @@ namespace ServiceDesk.Api.Data.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WorkstationDetails")
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AssetId");
+
+                    b.HasIndex("AssignedTechnicianId");
+
+                    b.HasIndex("RequesterId");
 
                     b.ToTable("Tickets");
 
@@ -406,7 +435,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 11, 1, 8, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P2",
                             Status = "open",
-                            Summary = "BitLocker protection suspended after restart"
+                            Summary = "BitLocker protection suspended after restart",
+                            Version = 0
                         },
                         new
                         {
@@ -416,7 +446,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 11, 1, 2, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P2",
                             Status = "in-progress",
-                            Summary = "TPM is not ready after firmware update"
+                            Summary = "TPM is not ready after firmware update",
+                            Version = 0
                         },
                         new
                         {
@@ -425,7 +456,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 31, 20, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P1",
                             Status = "open",
-                            Summary = "Workstation cannot connect to the office network"
+                            Summary = "Workstation cannot connect to the office network",
+                            Version = 0
                         },
                         new
                         {
@@ -434,7 +466,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 31, 14, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P3",
                             Status = "open",
-                            Summary = "External monitor flickers after sign-in"
+                            Summary = "External monitor flickers after sign-in",
+                            Version = 0
                         },
                         new
                         {
@@ -445,7 +478,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             Priority = "P4",
                             ResolvedAtUtc = new DateTime(2026, 10, 31, 11, 0, 0, 0, DateTimeKind.Utc),
                             Status = "resolved",
-                            Summary = "Requested headset replacement"
+                            Summary = "Requested headset replacement",
+                            Version = 0
                         },
                         new
                         {
@@ -455,7 +489,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 31, 2, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P3",
                             Status = "in-progress",
-                            Summary = "Shared printer missing after restart"
+                            Summary = "Shared printer missing after restart",
+                            Version = 0
                         },
                         new
                         {
@@ -464,7 +499,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 30, 20, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P2",
                             Status = "open",
-                            Summary = "BitLocker check reports protection off"
+                            Summary = "BitLocker check reports protection off",
+                            Version = 0
                         },
                         new
                         {
@@ -475,7 +511,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             Priority = "P2",
                             ResolvedAtUtc = new DateTime(2026, 10, 30, 16, 0, 0, 0, DateTimeKind.Utc),
                             Status = "resolved",
-                            Summary = "USB dock drops network connection"
+                            Summary = "USB dock drops network connection",
+                            Version = 0
                         },
                         new
                         {
@@ -484,7 +521,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 30, 8, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P3",
                             Status = "open",
-                            Summary = "New starter needs a workstation"
+                            Summary = "New starter needs a workstation",
+                            Version = 0
                         },
                         new
                         {
@@ -494,7 +532,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 30, 2, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P2",
                             Status = "in-progress",
-                            Summary = "Disk space alert on design workstation"
+                            Summary = "Disk space alert on design workstation",
+                            Version = 0
                         },
                         new
                         {
@@ -505,7 +544,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             Priority = "P3",
                             ResolvedAtUtc = new DateTime(2026, 10, 30, 1, 0, 0, 0, DateTimeKind.Utc),
                             Status = "resolved",
-                            Summary = "Video calls have no audio input"
+                            Summary = "Video calls have no audio input",
+                            Version = 0
                         },
                         new
                         {
@@ -514,7 +554,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 29, 14, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P4",
                             Status = "open",
-                            Summary = "Screen timeout setting requested"
+                            Summary = "Screen timeout setting requested",
+                            Version = 0
                         },
                         new
                         {
@@ -524,7 +565,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 29, 8, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P3",
                             Status = "in-progress",
-                            Summary = "Keyboard disconnects during sign-in"
+                            Summary = "Keyboard disconnects during sign-in",
+                            Version = 0
                         },
                         new
                         {
@@ -535,7 +577,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             Priority = "P2",
                             ResolvedAtUtc = new DateTime(2026, 10, 29, 6, 0, 0, 0, DateTimeKind.Utc),
                             Status = "resolved",
-                            Summary = "Encryption check has not reported"
+                            Summary = "Encryption check has not reported",
+                            Version = 0
                         },
                         new
                         {
@@ -544,7 +587,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 28, 20, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P4",
                             Status = "open",
-                            Summary = "Update pending restart"
+                            Summary = "Update pending restart",
+                            Version = 0
                         },
                         new
                         {
@@ -554,7 +598,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 28, 14, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P1",
                             Status = "in-progress",
-                            Summary = "Workstation is stuck at the sign-in screen"
+                            Summary = "Workstation is stuck at the sign-in screen",
+                            Version = 0
                         },
                         new
                         {
@@ -565,7 +610,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             Priority = "P4",
                             ResolvedAtUtc = new DateTime(2026, 10, 28, 11, 0, 0, 0, DateTimeKind.Utc),
                             Status = "resolved",
-                            Summary = "Install approved PDF reader"
+                            Summary = "Install approved PDF reader",
+                            Version = 0
                         },
                         new
                         {
@@ -575,7 +621,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 28, 2, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P4",
                             Status = "in-progress",
-                            Summary = "Confirm replacement mouse delivery"
+                            Summary = "Confirm replacement mouse delivery",
+                            Version = 0
                         },
                         new
                         {
@@ -584,7 +631,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 27, 20, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P2",
                             Status = "open",
-                            Summary = "VPN connection drops on Wi-Fi"
+                            Summary = "VPN connection drops on Wi-Fi",
+                            Version = 0
                         },
                         new
                         {
@@ -593,7 +641,8 @@ namespace ServiceDesk.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 10, 27, 14, 0, 0, 0, DateTimeKind.Utc),
                             Priority = "P4",
                             Status = "open",
-                            Summary = "Request for a second monitor"
+                            Summary = "Request for a second monitor",
+                            Version = 0
                         });
                 });
 
@@ -625,10 +674,15 @@ namespace ServiceDesk.Api.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TechnicianId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("TicketId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TechnicianId");
 
                     b.HasIndex("TicketId");
 
@@ -786,6 +840,87 @@ namespace ServiceDesk.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ServiceDesk.Api.Domain.TicketReply", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Author")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthorId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsInternal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TicketId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("TicketId");
+
+                    b.ToTable("TicketReply");
+                });
+
+            modelBuilder.Entity("ServiceDesk.Api.Domain.TicketTriageEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Field")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NewValue")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PreviousValue")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Technician")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TechnicianId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TicketId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TechnicianId");
+
+                    b.HasIndex("TicketId");
+
+                    b.ToTable("TicketTriageEvent");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -842,16 +977,62 @@ namespace ServiceDesk.Api.Data.Migrations
                     b.HasOne("ServiceDesk.Api.Domain.Asset", "Asset")
                         .WithMany()
                         .HasForeignKey("AssetId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedTechnicianId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "Requester")
+                        .WithMany()
+                        .HasForeignKey("RequesterId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Asset");
+
+                    b.Navigation("Requester");
                 });
 
             modelBuilder.Entity("ServiceDesk.Api.Domain.TicketEvent", b =>
                 {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("TechnicianId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ServiceDesk.Api.Domain.Ticket", null)
                         .WithMany("History")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ServiceDesk.Api.Domain.TicketReply", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ServiceDesk.Api.Domain.Ticket", null)
+                        .WithMany("Replies")
+                        .HasForeignKey("TicketId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ServiceDesk.Api.Domain.TicketTriageEvent", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("TechnicianId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ServiceDesk.Api.Domain.Ticket", null)
+                        .WithMany("TriageHistory")
                         .HasForeignKey("TicketId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -860,6 +1041,10 @@ namespace ServiceDesk.Api.Data.Migrations
             modelBuilder.Entity("ServiceDesk.Api.Domain.Ticket", b =>
                 {
                     b.Navigation("History");
+
+                    b.Navigation("Replies");
+
+                    b.Navigation("TriageHistory");
                 });
 #pragma warning restore 612, 618
         }

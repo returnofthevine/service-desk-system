@@ -1,4 +1,4 @@
-"""Run the published Endpoint Service Desk executable against disposable data."""
+"""Run the published Service Desk System executable against disposable data."""
 
 import argparse
 from collections import deque
@@ -23,6 +23,8 @@ from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_ope
 SETUP_CODE = re.compile(r"Setup code: ([A-F0-9]+)")
 NEW_USER = "smoke-technician"
 NEW_PASSWORD = "SmokeTest!2026"
+EMPLOYEE_USER = "smoke-employee"
+EMPLOYEE_PASSWORD = "EmployeeTest!2026"
 LEGACY_USER = "demo-tech"
 LEGACY_PASSWORD = "LegacySmoke!2026"
 LEGACY_NOTE = "Preserve this audit event from v0.1.0."
@@ -60,15 +62,16 @@ class Client:
         return json.loads(content)
 
     def write_json(self, method, path, body, *, expected=200):
+        # The token is issued to this client's cookie jar, just as it is in the browser.
         csrf = self.get_json("/api/auth/csrf")["requestToken"]
         content, _ = self.request(path, method=method, body=body, csrf=csrf, expected=expected)
         return json.loads(content) if content else None
 
-    def sign_in(self, user_name, password):
+    def sign_in(self, user_name, password, role="Technician"):
         self.write_json("POST", "/api/auth/sign-in", {"userName": user_name, "password": password})
         identity = self.get_json("/api/auth/me")
         assert identity["userName"] == user_name, identity
-        assert "Technician" in identity["roles"], identity
+        assert role in identity["roles"], identity
 
 
 class AssetLinks(HTMLParser):
@@ -88,7 +91,7 @@ class AssetLinks(HTMLParser):
 def check_web(client):
     page, content_type = client.request("/")
     assert content_type == "text/html", content_type
-    assert b"Endpoint Service Desk" in page
+    assert b"Service Desk System" in page
     for route in ("/tickets/1", "/sign-in", "/setup"):
         content, content_type = client.request(route)
         assert content_type == "text/html" and content == page, route
@@ -114,6 +117,7 @@ def available_port():
 
 @contextmanager
 def running_install(executable, working_directory, data_directory):
+    # Keep disposable data and the working directory outside the published application.
     base_url = f"http://127.0.0.1:{available_port()}"
     environment = {
         key: value for key, value in os.environ.items()
@@ -202,11 +206,24 @@ def check_fresh_install(executable, working_directory, data_directory):
         client.write_json("POST", setup_path, setup, expected=409)
 
         client.sign_in(NEW_USER, NEW_PASSWORD)
-        ticket = client.write_json(
-            "POST", "/api/tickets", {"assetId": 1, "summary": "Installed smoke test", "priority": "P2"},
+        client.write_json("POST", "/api/accounts/employees", {
+            "userName": EMPLOYEE_USER, "password": EMPLOYEE_PASSWORD,
+        }, expected=201)
+        employee = Client(client.base_url)
+        employee.sign_in(EMPLOYEE_USER, EMPLOYEE_PASSWORD, "Employee")
+        ticket = employee.write_json(
+            "POST", "/api/employee/tickets", {
+                "summary": "Installed smoke test", "description": "Employee ticket from the packaged app.",
+                "category": "software",
+            },
             expected=201,
         )
         ticket_path = f"/api/tickets/{ticket['id']}"
+        employee_path = f"/api/employee/tickets/{ticket['id']}"
+        queue = client.get_json("/api/v2/tickets?category=software&assigneeId=unassigned")
+        assert any(item["id"] == ticket["id"] for item in queue["items"]), queue
+        client.write_json("POST", f"{ticket_path}/replies", {"body": "Staff-only smoke note.", "isInternal": True})
+        client.write_json("POST", f"{ticket_path}/replies", {"body": "Employee-visible smoke reply.", "isInternal": False})
         client.write_json("PATCH", f"{ticket_path}/status", {"expectedStatus": "open", "status": "in-progress"})
         client.write_json("PATCH", f"{ticket_path}/status", {
             "expectedStatus": "in-progress", "status": "resolved", "note": "Installed ticket audit entry.",
@@ -222,9 +239,15 @@ def check_fresh_install(executable, working_directory, data_directory):
         assert ticket["summary"] == "Installed smoke test" and ticket["status"] == "resolved", ticket
         assert [event["newStatus"] for event in ticket["history"]] == ["in-progress", "resolved"], ticket
         assert ticket["history"][-1]["note"] == "Installed ticket audit entry.", ticket
+        employee = Client(client.base_url)
+        employee.sign_in(EMPLOYEE_USER, EMPLOYEE_PASSWORD, "Employee")
+        visible_ticket = employee.get_json(employee_path)
+        assert visible_ticket["status"] == "resolved", visible_ticket
+        assert [reply["body"] for reply in visible_ticket["replies"]] == ["Employee-visible smoke reply."], visible_ticket
 
 
 def check_upgrade(executable, working_directory, data_directory):
+    # Replay the legacy fixture with its existing account, ticket, and audit history.
     fixture = Path(__file__).parent / "fixtures" / "v0.1.0-upgrade.sql"
     data_directory.mkdir()
     with closing(sqlite3.connect(data_directory / "servicedesk.db")) as database:
@@ -246,12 +269,12 @@ def main():
     if not executable.is_file():
         parser.error(f"Executable does not exist: {executable}")
 
-    with tempfile.TemporaryDirectory(prefix="endpoint-service-desk-smoke-") as folder:
+    with tempfile.TemporaryDirectory(prefix="service-desk-system-smoke-") as folder:
         root = Path(folder)
         working_directory = root / "working-directory"
         working_directory.mkdir()
         check_fresh_install(executable, working_directory, root / "fresh-data")
-        print("Fresh install, technician setup, packaged UI, ticket history, and restart passed.")
+        print("Fresh install, technician setup, employee ticket handoff, reply privacy, and restart passed.")
         check_upgrade(executable, working_directory, root / "upgrade-data")
         print("Upgrade from v0.1.0 preserved the technician account and ticket history.")
 

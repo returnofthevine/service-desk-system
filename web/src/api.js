@@ -25,6 +25,7 @@ export async function apiRequest(path, options = {}) {
   const body = contentType.includes('json') ? await response.json().catch(() => null) : null
 
   if (!response.ok) {
+    // Auth endpoints handle missing sessions and invalid credentials in their own UI.
     if (response.status === 401 && !['/api/auth/sign-in', '/api/auth/me'].includes(path)) {
       window.dispatchEvent(new Event(sessionExpiredEvent))
     }
@@ -39,10 +40,12 @@ export async function apiRequest(path, options = {}) {
 }
 
 export async function writeApi(path, { method = 'POST', body } = {}) {
+  // Fetch a fresh token before each write so it matches the current cookie identity.
   const { requestToken } = await apiRequest('/api/auth/csrf', { cache: 'no-store' })
   const headers = { 'X-CSRF-TOKEN': requestToken }
 
   if (body === undefined || body instanceof FormData) {
+    // The browser sets the multipart boundary for CSV uploads.
     return apiRequest(path, { method, headers, body })
   }
 

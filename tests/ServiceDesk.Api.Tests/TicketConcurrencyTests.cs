@@ -8,6 +8,7 @@ namespace ServiceDesk.Api.Tests;
 
 public sealed class TicketConcurrencyTests
 {
+    // Separate contexts simulate two requests updating the same original row version.
     [Fact]
     public async Task SaveChanges_WithStaleStatus_LeavesOnlyTheWinningEvent()
     {

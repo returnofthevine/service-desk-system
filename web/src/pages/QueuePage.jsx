@@ -2,27 +2,34 @@ import { ArrowDownRight, ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import { Loading, ReadError } from '../components/Feedback'
 import { LocalTime, PriorityBadge, StatusBadge } from '../components/TicketFields'
-import { statusLabels } from '../labels'
+import { categoryLabels, priorities, statusLabels } from '../labels'
 import { useApiRead } from '../useApiRead'
 
 const statuses = ['all', ...Object.keys(statusLabels)]
-const priorities = ['all', 'P1', 'P2', 'P3', 'P4']
 
 export default function QueuePage() {
   const [filters, setFilters] = useSearchParams()
   const { search } = useLocation()
+  const { read: options, reload: reloadOptions } = useApiRead('/api/tickets/options')
   const requestedStatus = filters.get('status')
   const requestedPriority = filters.get('priority')
   const requestedPage = Number(filters.get('page'))
   const status = statuses.includes(requestedStatus) ? requestedStatus : 'open'
   const priority = priorities.includes(requestedPriority) ? requestedPriority : 'all'
+  const category = Object.hasOwn(categoryLabels, filters.get('category')) ? filters.get('category') : 'all'
+  const assignee = filters.get('assigneeId') || 'all'
+  const technicians = options.kind === 'ready' ? options.data.technicians : []
+  const isUnknownAssignee = assignee !== 'all' && assignee !== 'unassigned' && !technicians.some(({ id }) => id === assignee)
   const page = Number.isInteger(requestedPage) && requestedPage >= 1 && requestedPage <= 2_147_483_647
     ? requestedPage
     : 1
 
+  // Build the server query from the URL so queue filters survive ticket navigation.
   const query = new URLSearchParams({ page: String(page), pageSize: '10' })
   if (status !== 'all') query.set('status', status)
   if (priority !== 'all') query.set('priority', priority)
+  if (category !== 'all') query.set('category', category)
+  if (assignee !== 'all') query.set('assigneeId', assignee)
   const url = `/api/v2/tickets?${query}`
 
   function changeFilter(name, value) {
@@ -42,7 +49,7 @@ export default function QueuePage() {
     <>
       <div className="page-heading">
         <h1>Ticket queue</h1>
-        <p>Track endpoint incidents by status and priority.</p>
+        <p>Review employee requests and endpoint incidents.</p>
       </div>
 
       <div className="panel filters" aria-label="Ticket filters">
@@ -57,12 +64,29 @@ export default function QueuePage() {
         <label>
           Priority
           <select value={priority} onChange={(event) => changeFilter('priority', event.target.value)}>
-            {priorities.map((item) => (
+            {['all', ...priorities].map((item) => (
               <option key={item} value={item}>{item === 'all' ? 'All priorities' : item}</option>
             ))}
           </select>
         </label>
+        <label>
+          Category
+          <select value={category} onChange={(event) => changeFilter('category', event.target.value)}>
+            <option value="all">All categories</option>
+            {Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label>
+          Assigned technician
+          <select value={assignee} onChange={(event) => changeFilter('assigneeId', event.target.value)}>
+            <option value="all">All technicians</option>
+            <option value="unassigned">Unassigned</option>
+            {isUnknownAssignee && <option value={assignee}>{options.kind === 'loading' ? 'Loading technician…' : 'Unknown technician'}</option>}
+            {technicians.map(({ id, userName }) => <option key={id} value={id}>{userName}</option>)}
+          </select>
+        </label>
       </div>
+      {options.kind === 'error' && <ReadError retry={reloadOptions}>Could not load technicians. {options.error.message}</ReadError>}
 
       <TicketResults key={url} url={url} queueSearch={search} changePage={changePage} />
     </>
@@ -81,7 +105,7 @@ function TicketResults({ url, queueSearch, changePage }) {
       <div className="empty-state panel" role="status">
         <span className="section-icon"><Inbox size={22} aria-hidden="true" /></span>
         <h2>No matching tickets</h2>
-        <p>Try a different status or priority.</p>
+        <p>Try changing the queue filters.</p>
       </div>
     )
   }
@@ -115,6 +139,8 @@ function TicketResults({ url, queueSearch, changePage }) {
               <th scope="col">Ticket</th>
               <th scope="col">Priority</th>
               <th scope="col">Status</th>
+              <th scope="col">Category</th>
+              <th scope="col">Requester</th>
               <th scope="col">Workstation</th>
               <th scope="col">Technician</th>
               <th scope="col">Created</th>
@@ -132,7 +158,12 @@ function TicketResults({ url, queueSearch, changePage }) {
                 </td>
                 <td><PriorityBadge priority={ticket.priority} /></td>
                 <td><StatusBadge status={ticket.status} /></td>
-                <td><span className="asset-tag">{ticket.assetTag}</span><br /><span className="muted">{ticket.hostname}</span></td>
+                <td>{categoryLabels[ticket.category]}</td>
+                <td>{ticket.requesterName ?? <span className="muted">—</span>}</td>
+                <td>{ticket.assetTag
+                  ? <><span className="asset-tag">{ticket.assetTag}</span><br /><span className="muted">{ticket.hostname}</span></>
+                  : <span className="muted">Unlinked</span>}
+                </td>
                 <td>{ticket.assignedTechnician ?? <span className="muted">Unassigned</span>}</td>
                 <td><LocalTime utc={ticket.createdAtUtc} /></td>
               </tr>

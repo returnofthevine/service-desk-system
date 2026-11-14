@@ -14,6 +14,7 @@ namespace ServiceDesk.Api.Tests;
 
 internal sealed class TestApp : WebApplicationFactory<Program>
 {
+    // Each host gets an isolated database and its own generated test credentials.
     private readonly string databasePath =
         Path.Combine(Path.GetTempPath(), $"service-desk-{Guid.NewGuid():N}.db");
     private readonly string technicianPassword = $"Test!7-{Guid.NewGuid():N}";
@@ -55,15 +56,18 @@ internal sealed class TestApp : WebApplicationFactory<Program>
         BaseAddress = new Uri("https://localhost"),
     });
 
-    public async Task<HttpClient> CreateSignedInClientAsync(bool viewer = false)
+    public Task<HttpClient> CreateSignedInClientAsync(bool viewer = false) =>
+        CreateSignedInClientAsync(viewer ? "demo-viewer" : "demo-tech", viewer ? viewerPassword : technicianPassword);
+
+    public async Task<HttpClient> CreateSignedInClientAsync(string userName, string password)
     {
         var client = CreateApiClient();
         try
         {
             using var response = await SendJsonAsync(client, HttpMethod.Post, "/api/auth/sign-in", new
             {
-                userName = viewer ? "demo-viewer" : "demo-tech",
-                password = viewer ? viewerPassword : technicianPassword,
+                userName,
+                password,
             });
             response.EnsureSuccessStatusCode();
             return client;
@@ -86,6 +90,7 @@ internal sealed class TestApp : WebApplicationFactory<Program>
     public static async Task<HttpResponseMessage> SendJsonAsync<T>(
         HttpClient client, HttpMethod method, string path, T body)
     {
+        // Use the same cookie and antiforgery handshake as the browser.
         using var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
         request.Headers.Add("X-CSRF-TOKEN", await GetCsrfTokenAsync(client));
         return await client.SendAsync(request);

@@ -12,6 +12,7 @@ public static class DemoAccounts
         UserManager<IdentityUser> users,
         IConfiguration configuration)
     {
+        // Demo credentials come from developer configuration and are never part of the database seed.
         var technicianPassword = GetPassword(configuration, TechnicianPasswordKey);
         var viewerPassword = GetPassword(configuration, ViewerPasswordKey);
 
@@ -39,6 +40,7 @@ public static class DemoAccounts
             EnsureSucceeded(await roles.CreateAsync(new IdentityRole(role)), $"create role '{role}'");
         }
 
+        // Keep existing demo credentials and fill only the missing account or role membership.
         var user = await users.FindByNameAsync(userName);
         if (user is null)
         {

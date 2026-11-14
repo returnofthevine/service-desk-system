@@ -27,6 +27,7 @@ public sealed class DashboardController(ServiceDeskDbContext db) : ControllerBas
                 detail: "Supply two UTC dates in yyyy-MM-dd format. The end date must be after the start date.");
         }
 
+        // Use a half-open UTC interval so adjacent reports do not double-count midnight events.
         var fromUtc = start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var toUtc = end.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var tickets = db.Tickets.AsNoTracking();
@@ -40,6 +41,7 @@ public sealed class DashboardController(ServiceDeskDbContext db) : ControllerBas
             .Select(ticket => new { ticket.CreatedAtUtc, ResolvedAtUtc = ticket.ResolvedAtUtc!.Value })
             .ToListAsync(cancellationToken);
 
+        // Compute duration after fetching the resolution cohort, including tickets created before the range.
         double? averageResolutionMinutes = resolved.Count == 0
             ? null
             : resolved.Average(ticket => (ticket.ResolvedAtUtc - ticket.CreatedAtUtc).TotalMinutes);

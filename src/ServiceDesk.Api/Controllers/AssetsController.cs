@@ -32,6 +32,7 @@ public sealed class AssetsController(ServiceDeskDbContext db) : ControllerBase
             return Problem(statusCode: StatusCodes.Status413PayloadTooLarge, detail: "The CSV file must be 1 MiB or smaller.");
         }
 
+        // Parse into a pending batch and collect all row errors before writing anything.
         var assets = new List<Asset>();
         var errors = new List<ImportError>();
         var seenTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -93,6 +94,7 @@ public sealed class AssetsController(ServiceDeskDbContext db) : ControllerBase
             });
         }
 
+        // Save the validated batch together. SQLite's unique index also catches concurrent imports.
         db.Assets.AddRange(assets);
         try
         {
@@ -118,6 +120,7 @@ public sealed class AssetsController(ServiceDeskDbContext db) : ControllerBase
         HashSet<string> registeredTags,
         List<ImportError> errors)
     {
+        // Normalize the identifier and state values before comparing or saving them.
         var previousErrorCount = errors.Count;
         var assetTag = fields[0].Trim();
         var hostname = fields[1].Trim();

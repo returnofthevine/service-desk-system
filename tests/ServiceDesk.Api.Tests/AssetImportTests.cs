@@ -12,6 +12,7 @@ public sealed class AssetImportTests
 {
     private const string Header = "assetTag,hostname,bitLockerState,tpmState,lastCheckedAtUtc\n";
 
+    // A batch with an invalid row must leave the asset table untouched.
     [Fact]
     public async Task InvalidImportIsAtomicAndCorrectedAssetsCanBeUsedOnTickets()
     {

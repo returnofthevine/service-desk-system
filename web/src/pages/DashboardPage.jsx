@@ -6,6 +6,7 @@ import { useApiRead } from '../useApiRead'
 
 export default function DashboardPage() {
   const [search, setSearch] = useSearchParams()
+  // Start with the range that contains the sample tickets and keep applied dates shareable.
   const from = search.get('from') ?? '2026-10-27'
   const to = search.get('to') ?? '2026-11-02'
   const query = new URLSearchParams({ from, to })
@@ -28,6 +29,7 @@ export default function DashboardPage() {
 }
 
 function DateRange({ from, to, onChange }) {
+  // Edit the dates locally until the user submits the range.
   const [start, setStart] = useState(from)
   const [end, setEnd] = useState(to)
 

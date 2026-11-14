@@ -1,5 +1,6 @@
 import { CircleAlert, CircleCheck, LoaderCircle } from 'lucide-react'
 
+// Shared feedback panels announce progress and errors consistently across both workspaces.
 export function Loading({ children }) {
   return (
     <div className="feedback panel" role="status">

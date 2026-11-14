@@ -23,6 +23,7 @@ public sealed class DashboardTests
             new DateOnly(2026, 10, 27), new DateOnly(2026, 11, 2), 20, 5, 15, 204), result);
     }
 
+    // Use records on both boundaries and one created before its resolution period.
     [Fact]
     public async Task DashboardUsesTheResolutionCohortAndHalfOpenUtcIntervals()
     {

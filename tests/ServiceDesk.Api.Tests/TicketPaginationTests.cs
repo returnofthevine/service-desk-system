@@ -7,6 +7,7 @@ namespace ServiceDesk.Api.Tests;
 
 public sealed class TicketPaginationTests
 {
+    // Verify that moving between pages preserves the filter, total, and ordering.
     [Fact]
     public async Task FilteredPagesKeepTheStableOrderAndMatchingCount()
     {

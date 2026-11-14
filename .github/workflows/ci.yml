@@ -9,6 +9,7 @@ permissions:
   contents: read
 
 jobs:
+  # Run API integration tests and frontend checks independently.
   api:
     name: API tests
     runs-on: ubuntu-latest

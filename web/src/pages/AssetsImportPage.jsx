@@ -20,6 +20,7 @@ export default function AssetsImportPage() {
       const data = await writeApi('/api/assets/import', { body })
       setResult({ kind: 'success', data })
     } catch (error) {
+      // The API can return row-specific validation errors with the upload failure.
       setResult({ kind: 'error', message: error.message, rows: error.body?.errors })
     } finally {
       setPending(false)

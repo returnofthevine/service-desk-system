@@ -7,6 +7,7 @@ namespace ServiceDesk.Api.Tests;
 
 public sealed class AuthorizationTests
 {
+    // Authentication, role authorization, and antiforgery each reject a distinct kind of request.
     [Fact]
     public async Task TicketAccess_RequiresRoleAndCsrfForWrites()
     {

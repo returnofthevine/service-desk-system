@@ -6,7 +6,7 @@ import shutil
 import tempfile
 
 
-APP_NAME = "endpoint-service-desk"
+APP_NAME = "service-desk-system"
 RUNTIMES = (
     "win-x64", "win-arm64", "osx-x64", "osx-arm64", "linux-x64", "linux-arm64",
 )
@@ -24,7 +24,7 @@ def package(runtime: str, published: Path, web: Path, output: Path) -> Path:
         launch = f"Double-click {launcher}, or run {command} in PowerShell."
 
     quickstart = [
-        "Endpoint Service Desk",
+        "Service Desk System",
         "",
         f"1. {launch}",
         "2. Keep the terminal open and visit http://127.0.0.1:5087/ in your browser.",
@@ -42,7 +42,8 @@ def package(runtime: str, published: Path, web: Path, output: Path) -> Path:
 
     output.mkdir(parents=True, exist_ok=True)
     archive = output.resolve() / f"{APP_NAME}-{runtime}"
-    with tempfile.TemporaryDirectory(prefix="endpoint-service-desk-package-") as staging:
+    with tempfile.TemporaryDirectory(prefix="service-desk-system-package-") as staging:
+        # Assemble the runtime and static browser files under one extraction directory.
         package_root = Path(staging) / APP_NAME
         shutil.copytree(published, package_root)
         shutil.copytree(web, package_root / "wwwroot", dirs_exist_ok=True)

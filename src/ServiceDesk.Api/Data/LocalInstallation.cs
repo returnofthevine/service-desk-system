@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,7 @@ internal static class LocalInstallation
             return Path.GetFullPath(configured);
         }
 
+        // Retain the original application-data folder so updates reopen the existing database.
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData,
             Environment.SpecialFolderOption.DoNotVerify);
         if (string.IsNullOrEmpty(appData))
@@ -28,17 +30,35 @@ internal static class LocalInstallation
         return Path.Combine(appData, "EndpointServiceDesk");
     }
 
-    internal static int GetPort(IConfiguration configuration)
+    internal static LocalListener GetListener(IConfiguration configuration)
     {
         var urls = configuration["urls"] ?? "http://127.0.0.1:5087";
         if (!Uri.TryCreate(urls, UriKind.Absolute, out var url) ||
-            url.Scheme != Uri.UriSchemeHttp || url.Host != "127.0.0.1" || url.Port == 0 ||
+            url.Port <= 0 ||
             url.PathAndQuery != "/" || url.Fragment.Length != 0 || url.UserInfo.Length != 0)
         {
-            throw new InvalidOperationException("Choose a local URL such as --urls http://127.0.0.1:5087.");
+            throw new InvalidOperationException("Choose one application URL without a path, such as --urls http://127.0.0.1:5087.");
         }
 
-        return url.Port;
+        if (url.Scheme == Uri.UriSchemeHttp && url.Host == "127.0.0.1")
+        {
+            return new LocalListener(IPAddress.Loopback, url.Port, "127.0.0.1", null, null);
+        }
+
+        // Shared mode serves passwords and tickets over HTTPS and accepts only the configured Host.
+        var networkHost = configuration["ServiceDesk:NetworkHost"];
+        var certificatePath = configuration["ServiceDesk:Tls:CertificatePath"];
+        if (url.Scheme != Uri.UriSchemeHttps || !IPAddress.TryParse(url.Host, out var address) ||
+            address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork || IPAddress.IsLoopback(address) ||
+            string.IsNullOrEmpty(networkHost) ||
+            Uri.CheckHostName(networkHost) is not (UriHostNameType.Dns or UriHostNameType.IPv4) ||
+            string.IsNullOrEmpty(certificatePath) || !Path.IsPathFullyQualified(certificatePath) || !File.Exists(certificatePath))
+        {
+            throw new InvalidOperationException("Shared access requires an HTTPS IPv4 listen URL, ServiceDesk:NetworkHost, and an absolute ServiceDesk:Tls:CertificatePath to a PFX file.");
+        }
+
+        return new LocalListener(address, url.Port, networkHost, certificatePath,
+            configuration["ServiceDesk:Tls:CertificatePassword"]);
     }
 
     internal static FileStream Lock(string directory)
@@ -63,17 +83,29 @@ internal static class LocalInstallation
         }
     }
 
-    internal static async Task PrepareAsync(IServiceProvider services)
+    internal static async Task PrepareAsync(IServiceProvider services, bool shared)
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ServiceDeskDbContext>();
         await db.Database.MigrateAsync();
 
+        // Only loopback may bootstrap the first technician. Shared mode requires an existing account.
         var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
         if ((await users.GetUsersInRoleAsync("Technician")).Count == 0)
         {
+            if (shared)
+            {
+                throw new InvalidOperationException("Start on http://127.0.0.1:5087 and create the first technician before enabling shared access.");
+            }
+
             var setup = services.GetRequiredService<FirstRunSetup>();
             Console.WriteLine($"Setup code: {setup.Begin()}");
         }
+    }
+
+    internal sealed record LocalListener(IPAddress Address, int Port, string Host,
+        string? CertificatePath, string? CertificatePassword)
+    {
+        internal bool Shared => CertificatePath is not null;
     }
 }

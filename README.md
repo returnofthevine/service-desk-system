@@ -1,37 +1,60 @@
-# Endpoint Service Desk
+# Service Desk System
 
-Endpoint Service Desk is a local help desk for a fictional organization. It gives technicians one place to triage workstation issues, check reported BitLocker and Trusted Platform Module (TPM) states, and record how each ticket was resolved. A SQLite database keeps tickets, workstation records, and status history across browser refreshes and server restarts. The demo includes 12 workstations and 20 tickets.
+Service Desk System connects employees who need help with technicians who handle their requests. Employees report issues, follow progress, and reply from a browser. Technicians use a separate workspace to triage and assign those same tickets, communicate with the requester, and record the resolution. Both views use one ASP.NET Core API and one SQLite database stored on the computer running the app.
 
-[Download the app](https://github.com/returnofthevine/endpoint-service-desk/releases/latest) or [watch the 57-second captioned ticket walkthrough](docs/demo.mp4).
+[Download the app](https://github.com/returnofthevine/service-desk-system/releases/latest) · [Watch the employee-to-technician demo](docs/service-desk-workflow.mp4)
 
-## What you can do
-
-- Filter the queue by priority and status. Filters and page numbers are stored in the URL so you can return to the same view from a ticket.
-- Open a ticket to review its workstation, reported security states, assignee, timestamps, and audit history. The states come from seed data or a CSV import.
-- Sign in as a **Technician** to start work, resolve tickets with a note, create tickets through the API, and import workstations from CSV. Sign in as a **Viewer** to read the queue, ticket details, and dashboard.
-- Track ticket volume, resolutions, backlog, and average resolution time on the incident dashboard.
+| Role | What you can do |
+| --- | --- |
+| Employee | Submit and track your own requests, read replies and status updates shared with you, and reply to the technician. A registered workstation is optional. |
+| Technician | See the service desk queue, prioritize and assign requests, link a workstation, reply to the employee or record an internal note, and resolve the ticket. Create employee and technician accounts, import assets, and view incident metrics. |
+| Viewer | Read the staff queue, ticket details, and dashboard with an existing Viewer account. Employees have their own role and can access only their tickets. |
 
 ## Install and run
 
-Download the archive for your operating system and processor from [GitHub Releases](https://github.com/returnofthevine/endpoint-service-desk/releases/latest). Each download includes the web interface, API, .NET runtime, and SQLite engine. GitHub access is required to download from this private repository.
+Download the archive for your operating system and processor from [GitHub Releases](https://github.com/returnofthevine/service-desk-system/releases/latest). The downloads include the web interface, API, .NET runtime, and SQLite engine. Downloading from the private repository requires GitHub access.
 
-| Computer | Download suffix | Start from the extracted folder |
+| Computer | Download suffix | Start from the extracted app folder |
 | --- | --- | --- |
 | Windows x64 or ARM64 | `win-x64.zip` or `win-arm64.zip` | `./ServiceDesk.Api.exe` in PowerShell |
 | Mac with Apple silicon or Intel | `osx-arm64.tar.gz` or `osx-x64.tar.gz` | `./ServiceDesk.Api` in Terminal |
 | Linux x64 or ARM64 | `linux-x64.tar.gz` or `linux-arm64.tar.gz` | `./ServiceDesk.Api` in a terminal |
 
-1. Extract the entire archive. Open a terminal in the `endpoint-service-desk` folder and run the command in the table.
-2. Open [http://127.0.0.1:5087/](http://127.0.0.1:5087/) on the same computer. If port 5087 is in use, add `--urls http://127.0.0.1:5090` to the launch command and open port 5090 instead.
-3. On the first launch, enter the setup code printed in the terminal and create a technician username and password. Sign in with that account. Leave the terminal open while you use the app and press Ctrl+C to stop it.
+1. Extract the entire archive and open a terminal in the `service-desk-system` folder. Run the command in the table.
+2. Open [http://127.0.0.1:5087/](http://127.0.0.1:5087/) on the host computer. If port 5087 is in use, append `--urls http://127.0.0.1:5090` to the command and open port 5090 instead.
+3. On first launch, copy the one-time setup code from the terminal and create a technician account in the browser. Sign in with the account you just created.
+4. In the technician workspace, open **Accounts** to create an employee account. Use a separate browser profile or private window to sign in as that employee while keeping the technician session open.
+5. Leave the host app running while either portal is in use. Press Ctrl+C in the host terminal to stop it.
 
-The Linux downloads target glibc-based distributions. The macOS downloads have no Developer ID signature or notarization, so Gatekeeper may block them under some security settings. The terminal prints the data directory on startup.
+The Linux packages target glibc-based distributions with the native libraries required by .NET. The macOS packages lack Developer ID signing and notarization, so Gatekeeper may block them under some security settings.
 
-### Update or move existing data
+### Use one database across computers
 
-Close the running app before launching a newer download. You can extract the new version to a separate folder. It uses the same per-user `EndpointServiceDesk` app-data directory, applies any pending database migrations on startup, and preserves your accounts, tickets, and history. Each computer has its own database.
+Run one copy of the app on the computer that will host the service desk. Employees and technicians open that host's HTTPS URL in their browsers. The app reads and writes the database file on the host, so every user sees the same ticket numbers and updates.
 
-To carry over a database from the v0.1.0 source setup, stop the old app and back up its `servicedesk.db`. Copy the database into an empty folder that only your OS user can access and set `ServiceDesk__DataDirectory` to that folder's absolute path before starting the packaged app. If SQLite sidecar files are still present, use SQLite's backup command to make a consistent copy. The packaged app will keep the existing technician account and password.
+Complete the first-launch technician setup on the host using the loopback instructions above. Before enabling local network access, arrange a local DNS name and a TLS certificate with that name in its subject alternative names. The employee devices must trust the certificate's issuer and resolve the hostname to the host's LAN IP. Restrict inbound access to the selected port to your local network in the host firewall.
+
+Stop the loopback instance, then start the app in shared mode. For example, on macOS or Linux:
+
+```sh
+./ServiceDesk.Api --urls https://0.0.0.0:5087 \
+  --ServiceDesk:NetworkHost desk.example.test \
+  --ServiceDesk:Tls:CertificatePath /absolute/path/to/desk.pfx
+```
+
+On Windows, use the same options on one PowerShell line:
+
+```powershell
+./ServiceDesk.Api.exe --urls https://0.0.0.0:5087 --ServiceDesk:NetworkHost desk.example.test --ServiceDesk:Tls:CertificatePath C:\certs\desk.pfx
+```
+
+Supply the PFX password to the app process through the `ServiceDesk__Tls__CertificatePassword` environment variable. Employees and technicians can now open `https://desk.example.test:5087/` from their devices. Replace the example DNS name with the hostname on your certificate. Keep the SQLite database in the host's local app-data folder.
+
+### Update, back up, or move data
+
+Close the running app before launching an update. Extract the new version to a separate folder and run it as the same OS user. The app uses the existing per-user `EndpointServiceDesk` data directory and applies pending database migrations at startup. The terminal prints the full data path. The upgrade preserves existing accounts, assets, tickets, and history. Tickets without a recorded requester remain visible to staff.
+
+To back up or carry over data from a source checkout or another host, stop the old app and use SQLite's backup command to make a consistent copy of `servicedesk.db`. Copy the backup into an empty folder that only the host OS user can access. Set `ServiceDesk__DataDirectory` to that folder's absolute path before launch.
 
 ```sh
 export ServiceDesk__DataDirectory="/absolute/path/to/service-desk-data"
@@ -43,11 +66,31 @@ $env:ServiceDesk__DataDirectory = 'C:\absolute\path\to\service-desk-data'
 ./ServiceDesk.Api.exe
 ```
 
+Existing credentials carry over with the database. Users should sign in again on the new host.
+
+## Try the service desk
+
+[Watch the captioned walkthrough](docs/service-desk-workflow.mp4) to follow one employee request from submission through resolution.
+
+1. Sign in as a technician and create an employee account from **Accounts**. Open a second browser profile or private window and sign in as that employee.
+2. In the employee portal, open **Report an issue**, choose a category, enter a summary and description, then submit the ticket. It starts open, unassigned, and at priority P3. Save the ticket number shown in **My tickets**.
+3. In the technician's **Queue**, open the same ticket number. Set its priority, assign it to yourself or another technician, and start work. Send an employee-visible reply and add an internal note.
+4. As the employee, reopen the ticket and check the updated status and reply. Send a reply of your own. Internal notes stay in the staff workspace.
+5. As the technician, review the reply and resolve the ticket with an employee-visible resolution note. In the employee browser, refresh the ticket to see the outcome. The updates and messages persist in SQLite.
+
+### Workstation and dashboard demo
+
+The original [endpoint triage video](docs/demo.mp4) walks through ticket **#1** on asset **WS-001**, from the reported BitLocker and TPM states through resolution and a page refresh. It shows the earlier Endpoint Service Desk interface. In a fresh demo database, open ticket #1 from the technician queue to follow along.
+
+Technicians can also upload the [sample asset CSV](fixtures/assets-import-example.csv) in **Import assets**. It contains intentional errors that demonstrate row-level validation. The app saves the batch after all rows pass validation.
+
+On **Dashboard**, select a UTC start date and exclusive end date. The dashboard counts tickets created or resolved in that interval. **Open now** counts the current open and in-progress backlog across all dates. Average resolution time is the mean elapsed time for tickets resolved in the interval. With untouched demo data, **2026-10-27** through the exclusive end date **2026-11-02** shows 20 created, 5 resolved, 15 open now, and a 204-minute average.
+
 ## Develop from source
 
 Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and [Node.js 24 LTS](https://nodejs.org/en/download). The EF Core SQLite package supplies the database engine.
 
-From the repository root, restore the local EF CLI and set two different local passwords. Replace the example values with passwords of your own that include an uppercase letter, lowercase letter, digit, and punctuation. The settings are stored outside the repository by .NET user secrets.
+From the repository root, restore the local EF CLI and set different local passwords. Replace the example values with passwords of your own that include an uppercase letter, lowercase letter, digit, and punctuation. .NET user secrets stores these settings outside the repository.
 
 ```sh
 dotnet tool restore
@@ -55,7 +98,7 @@ dotnet user-secrets set 'DemoAccounts:TechnicianPassword' '<your-technician-pass
 dotnet user-secrets set 'DemoAccounts:ViewerPassword' '<your-viewer-password>' --project src/ServiceDesk.Api
 ```
 
-Start the API in one terminal. Apply the migrations before starting it so the demo users can be provisioned in Development.
+Start the API in one terminal after applying the database migrations:
 
 ```sh
 cd src/ServiceDesk.Api
@@ -63,7 +106,7 @@ dotnet tool run dotnet-ef database update
 dotnet run --no-launch-profile -e DOTNET_ENVIRONMENT=Development -- --urls http://127.0.0.1:5087
 ```
 
-From the repository root in a second terminal, start the React app.
+From the repository root in a second terminal, start the React app:
 
 ```sh
 cd web
@@ -71,57 +114,34 @@ npm ci
 npm run dev
 ```
 
-Open <http://127.0.0.1:5173/>. Sign in as `demo-tech` or `demo-viewer` using the corresponding password. The Vite development server forwards `/api` requests to `http://127.0.0.1:5087`.
-
-## Try the ticket workflow
-
-1. Sign in with your technician account, or use `demo-tech` if you started from source. In the queue, select **Open** and **P2**. Open ticket **#1**, the BitLocker suspension report for `WS-001`.
-2. Check the workstation card. It reports BitLocker **Suspended** and TPM **Ready**. Select **Start work**. The app assigns the ticket to your account and records the change.
-3. Try resolving with a blank note to see the validation message. Enter `Checked the reported BitLocker and TPM states. Recorded the follow-up.` and resolve the ticket.
-4. Refresh the detail page. The resolved timestamp and both audit events are loaded from SQLite. In the source setup, you can also sign in as `demo-viewer` to see the same history with read access.
-
-To see how stale edits are handled, open a different open ticket in two tabs. Start work in the first tab, then try starting work in the second. The second request receives `409 Conflict` and the page reloads the saved status. The API checks the expected status before editing. EF Core also compares the original status when saving, so the ticket and its audit entry commit together even when two requests arrive at the same time.
-
-## Import workstation data
-
-As a technician, open **Import assets** and upload [the sample CSV](fixtures/assets-import-example.csv). It contains an intentional duplicate tag and two invalid fields. The page lists the errors by row and field, and the API saves zero assets. Fix those values and upload again to create all three assets. CSV uploads accept up to 1 MiB and 1,000 data rows. Asset tags are compared case-insensitively.
-
-```csv
-assetTag,hostname,bitLockerState,tpmState,lastCheckedAtUtc
-WS-025,LAB-WS-01,protected,ready,2026-11-01T13:30:00Z
-```
-
-## Read the incident dashboard
-
-Select a start date and an exclusive end date. The app uses UTC midnight for both dates. The dashboard counts tickets created within that interval and tickets resolved within it, even if they were created earlier. **Open now** counts the current open and in-progress backlog across all dates. Average resolution time is the mean of `resolvedAtUtc - createdAtUtc` for tickets resolved during the interval. For example, 30, 60, and 180 minutes average to 90 minutes.
-
-With untouched demo data, choose **2026-10-27** through the exclusive end date **2026-11-02** to see 20 created, 5 resolved, 15 open now, and a 204-minute average.
+Open <http://127.0.0.1:5173/> and sign in as `demo-tech` or `demo-viewer` using the corresponding password. Use the technician's **Accounts** page to create a test employee. Vite forwards browser API requests to the local ASP.NET Core API.
 
 ## API reference
 
 | Method and route | Access | Behavior |
 | --- | --- | --- |
-| `GET /api/health` | Public | Reports whether the API process is running. |
-| `GET /api/setup/status` | Public | Indicates whether first-launch setup is required. |
-| `POST /api/setup/technician` | One-time setup code | Creates the initial technician account on a fresh packaged installation. |
-| `GET /api/auth/csrf` | Public | Sets the antiforgery cookie and returns a request token. |
-| `POST /api/auth/sign-in` | Public | Exchanges a username and password for a session cookie. |
-| `GET /api/auth/me` and `POST /api/auth/sign-out` | Signed in | Read or end the session. |
-| `GET /api/tickets` | Technician, Viewer | Lists tickets with optional `status` and `priority` filters. |
-| `GET /api/v2/tickets` | Technician, Viewer | Adds `page` and `pageSize` with defaults of 1 and 10. |
-| `GET /api/tickets/{id}` | Technician, Viewer | Returns the ticket, workstation, and chronological history. |
-| `POST /api/tickets` | Technician | Creates an open ticket for an existing asset. Returns `201` and a `Location` header. |
-| `PATCH /api/tickets/{id}/status` | Technician | Moves `open` → `in-progress` → `resolved`. Resolution requires a note. |
-| `POST /api/assets/import` | Technician | Validates a multipart `file` and saves the batch in one operation. |
-| `GET /api/dashboard?from=2026-10-27&to=2026-11-02` | Technician, Viewer | Reads the incident metrics for a UTC date range. |
+| `GET /api/health` and `GET /api/setup/status` | Public | Report service health and whether packaged first-launch setup is required. |
+| `POST /api/setup/technician` | One-time setup code | Creates the first technician on a fresh packaged installation. |
+| `GET /api/auth/csrf` and `POST /api/auth/sign-in` | Public | Get an antiforgery token and sign in to a cookie session. |
+| `GET /api/auth/me` and `POST /api/auth/sign-out` | Signed in | Read or end the current session. |
+| `GET /api/accounts/employees` and `POST /api/accounts/employees` | Technician | List and create employee accounts. |
+| `GET /api/accounts/technicians` and `POST /api/accounts/technicians` | Technician | List and create technician accounts. |
+| `GET /api/employee/tickets` and `POST /api/employee/tickets` | Employee | List your requests or submit a new request. |
+| `GET /api/employee/tickets/{id}` and `POST /api/employee/tickets/{id}/replies` | Ticket requester | Read employee-visible ticket details or reply on that ticket. |
+| `GET /api/tickets` and `GET /api/v2/tickets` | Technician, Viewer | Read the staff queue. The v2 route supports pagination. |
+| `GET /api/tickets/{id}` | Technician, Viewer | Read staff ticket details, workstation data, messages, and audit history. |
+| `POST /api/tickets` | Technician | Create a ticket from the existing staff API. |
+| `GET /api/tickets/options` and `PATCH /api/tickets/{id}/triage` | Technician | Read technician and asset choices or update a ticket's assignee, priority, and linked asset. |
+| `PATCH /api/tickets/{id}/status` | Technician | Move a ticket through open, in progress, and resolved. Resolution requires a note. |
+| `POST /api/tickets/{id}/replies` | Technician | Add an employee-visible reply or an internal note. |
+| `POST /api/assets/import` | Technician | Import workstation data from CSV. |
+| `GET /api/dashboard` | Technician, Viewer | Read incident metrics for a UTC date range. |
 
 For API writes, keep the cookies across requests, fetch a fresh token from `/api/auth/csrf`, and include it in the `X-CSRF-TOKEN` header. Fetch the token again after signing in. Example JSON request bodies live in [fixtures](fixtures/).
 
-## Build, test, and reset
+## Build and test
 
-The ASP.NET Core API uses Entity Framework Core and SQLite. React and React Router provide the web interface. The xUnit integration tests start the real API with isolated SQLite databases and apply the committed migrations. GitHub Actions runs the API and web checks on each push to `main` and on pull requests.
-
-The release workflow also builds the archives and runs the packaged app on native Windows, macOS, and Linux runners before publishing. The smoke check exercises first-launch setup, sign-in, and data persistence across a restart.
+The xUnit integration tests start the real ASP.NET Core API with isolated SQLite databases and apply the committed migrations. GitHub Actions runs the API and web checks on pushes to `main` and on pull requests. The release workflow builds and smoke-tests the installation archives on Windows, macOS, and Linux runners.
 
 ```sh
 dotnet test EndpointServiceDesk.slnx --configuration Release
@@ -130,18 +150,17 @@ npm --prefix web run lint
 npm --prefix web run build
 ```
 
-To reset a source-checkout demo, stop the API and run the following from `src/ServiceDesk.Api/`. This deletes the local demo database, including any ticket changes and imports. The next Development startup recreates the demo accounts from your existing local password settings.
+To reset a source-checkout demo, stop the API and run the commands below from `src/ServiceDesk.Api/`. This deletes the local demo database, including any accounts, ticket changes, or imports you added. The next Development startup recreates the demo accounts from the existing user secrets.
 
 ```sh
 dotnet tool run dotnet-ef database drop --force
 dotnet tool run dotnet-ef database update
 ```
 
-Existing demo accounts keep their passwords across restarts. Reset the local database to recreate them after changing the user secrets.
-
 | Path | Contents |
 | --- | --- |
-| `src/ServiceDesk.Api/` | HTTP endpoints, Identity roles, EF Core migrations, and demo seed data. |
+| `src/ServiceDesk.Api/` | ASP.NET Core API, Identity authorization, EF Core migrations, and SQLite data. |
 | `tests/ServiceDesk.Api.Tests/` | API, authorization, CSV, dashboard, and database concurrency tests. |
-| `web/` | React pages, API client, and Vite configuration. |
+| `web/` | React employee and technician views, API client, and Vite configuration. |
 | `fixtures/` | Sample JSON requests and workstation CSV data. |
+| `scripts/` | Cross-platform archive assembly and installation smoke checks. |

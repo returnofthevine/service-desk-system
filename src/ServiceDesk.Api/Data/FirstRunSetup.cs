@@ -5,6 +5,7 @@ namespace ServiceDesk.Api.Data;
 
 public sealed class FirstRunSetup : IDisposable
 {
+    // Keep the first-run code in memory for this process and clear it once setup commits.
     private string? code;
 
     internal SemaphoreSlim Gate { get; } = new(1, 1);
@@ -21,6 +22,7 @@ public sealed class FirstRunSetup : IDisposable
     {
         var current = Volatile.Read(ref code);
         var candidate = submitted?.Trim();
+        // The setup code uses uppercase hex and accepts lowercase when entered by hand.
         return current is not null && candidate?.Length == current.Length &&
             CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(current),
                 Encoding.UTF8.GetBytes(candidate.ToUpperInvariant()));

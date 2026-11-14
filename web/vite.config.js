@@ -8,6 +8,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      // Keep API and browser requests on one origin during development.
       '/api': 'http://127.0.0.1:5087',
     },
   },

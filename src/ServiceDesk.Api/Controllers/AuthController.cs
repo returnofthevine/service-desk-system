@@ -13,6 +13,7 @@ public sealed class AuthController(
     UserManager<IdentityUser> userManager,
     IAntiforgery antiforgery) : ControllerBase
 {
+    // The browser fetches a token before each write, including sign-in and sign-out.
     [AllowAnonymous]
     [HttpGet("csrf")]
     public IActionResult GetCsrfToken()
@@ -30,6 +31,7 @@ public sealed class AuthController(
             return Problem(statusCode: StatusCodes.Status400BadRequest, detail: "Enter your username and password.");
         }
 
+        // Identity verifies the stored hash, tracks failed attempts and issues the session cookie.
         var result = await signInManager.PasswordSignInAsync(
             request.UserName.Trim(), request.Password, isPersistent: false, lockoutOnFailure: true);
 
@@ -51,6 +53,7 @@ public sealed class AuthController(
             return Unauthorized();
         }
 
+        // The browser uses these roles to select a workspace. The API enforces the same roles independently.
         var roles = await userManager.GetRolesAsync(user);
         return Ok(new { user.UserName, Roles = roles });
     }

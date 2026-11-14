@@ -1,4 +1,3 @@
-using System.Net;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +5,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using ServiceDesk.Api.Data;
 
+// The marker identifies the distributed package, which carries its web files alongside the executable.
 var packaged = File.Exists(Path.Combine(AppContext.BaseDirectory, "service-desk-installed"));
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 });
 
 string? dataDirectory = null;
+LocalInstallation.LocalListener? listener = null;
 if (packaged)
 {
     if (!File.Exists(Path.Combine(builder.Environment.WebRootPath ??
@@ -23,25 +24,41 @@ if (packaged)
     }
 
     dataDirectory = LocalInstallation.GetDataDirectory(builder.Configuration);
-    var port = LocalInstallation.GetPort(builder.Configuration);
-    builder.Configuration["AllowedHosts"] = "127.0.0.1";
+    listener = LocalInstallation.GetListener(builder.Configuration);
+    builder.Configuration["AllowedHosts"] = listener.Host;
+    // Use only the validated listener so inherited Kestrel settings cannot add a second listener.
     builder.WebHost.ConfigureKestrel(options =>
     {
-        // This distribution accepts HTTP only on loopback, including when the environment supplies Kestrel settings.
         options.Configure(new ConfigurationBuilder().Build(), reloadOnChange: false);
-        options.Listen(IPAddress.Loopback, port);
+        options.Listen(listener.Address, listener.Port, endpoint =>
+        {
+            if (listener.CertificatePath is { } certificatePath)
+            {
+                endpoint.UseHttps(certificatePath, listener.CertificatePassword);
+            }
+        });
     });
+    // Store session and antiforgery keys alongside the database so restarts can read existing cookies.
     builder.Services.AddDataProtection()
         .SetApplicationName("EndpointServiceDesk")
         .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDirectory, "keys")));
 }
 
+// A packaged database belongs to one running host, including during migrations.
 using var installationLock = dataDirectory is null ? null : LocalInstallation.Lock(dataDirectory);
 
+// All controller writes require an antiforgery token in addition to any role policy.
 builder.Services.AddControllersWithViews(options =>
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 builder.Services.AddProblemDetails();
-builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    if (listener?.Shared == true)
+    {
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    }
+});
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<ServiceDeskDbContext>();
 builder.Services.AddAuthorization();
@@ -50,10 +67,13 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = packaged || builder.Environment.IsDevelopment()
+    options.Cookie.SecurePolicy = listener?.Shared == true
+        ? CookieSecurePolicy.Always
+        : packaged || builder.Environment.IsDevelopment()
         ? CookieSecurePolicy.SameAsRequest
         : CookieSecurePolicy.Always;
 });
+// Installed copies use the per-user database. Development and tests supply their own connection string.
 builder.Services.AddDbContext<ServiceDeskDbContext>((services, options) =>
 {
     if (dataDirectory is not null)
@@ -79,9 +99,10 @@ builder.Services.AddDbContext<ServiceDeskDbContext>((services, options) =>
 
 var app = builder.Build();
 
+// Finish database initialization before serving requests from either portal.
 if (dataDirectory is not null)
 {
-    await LocalInstallation.PrepareAsync(app.Services);
+    await LocalInstallation.PrepareAsync(app.Services, listener!.Shared);
     app.Logger.LogInformation("Application data directory: {DataDirectory}", dataDirectory);
 }
 else if (app.Environment.IsDevelopment() &&
@@ -106,6 +127,7 @@ app.MapControllers();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 if (packaged)
 {
+    // Browser routes return the React entry point, while unknown API routes keep their 404 response.
     app.Map("/api/{**path}", () => Results.NotFound());
     app.MapFallbackToFile("index.html");
 }

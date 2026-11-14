@@ -4,6 +4,16 @@ export const statusLabels = {
   resolved: 'Resolved',
 }
 
+export const categoryLabels = {
+  endpoint: 'Endpoint',
+  'account-access': 'Account access',
+  software: 'Software',
+  network: 'Network',
+  other: 'Other',
+}
+
+export const priorities = ['P1', 'P2', 'P3', 'P4']
+
 export const bitLockerLabels = {
   protected: 'Protected',
   suspended: 'Suspended',

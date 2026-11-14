@@ -6,6 +6,7 @@ export function useApiRead(path) {
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
+    // Cancel superseded requests when a filter changes or the user leaves the page.
     const controller = new AbortController()
 
     async function load() {
@@ -27,6 +28,7 @@ export function useApiRead(path) {
   }, [])
 
   const replace = useCallback((data) => {
+    // Mutation responses contain the updated record, so no second read is needed.
     setRead({ kind: 'ready', data })
   }, [])
 

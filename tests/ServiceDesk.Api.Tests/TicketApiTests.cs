@@ -7,6 +7,7 @@ namespace ServiceDesk.Api.Tests;
 
 public sealed class TicketApiTests
 {
+    // Check that a newly created ticket can be retrieved from the URL returned by the API.
     [Fact]
     public async Task CreateTicket_CanBeReadFromItsLocation()
     {

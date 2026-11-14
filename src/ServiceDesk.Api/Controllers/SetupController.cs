@@ -21,6 +21,7 @@ public sealed class SetupController(
     [HttpPost("technician")]
     public async Task<IActionResult> CreateTechnician(SetupRequest request, CancellationToken cancellationToken)
     {
+        // Serialize setup attempts and recheck the code after acquiring the gate.
         await setup.Gate.WaitAsync(cancellationToken);
         try
         {
@@ -42,6 +43,7 @@ public sealed class SetupController(
                     detail: "Enter a username of 1–100 characters and a password of up to 128 characters.");
             }
 
+            // Keep the initial user and its Technician role assignment in one transaction.
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             const string technician = "Technician";
             if (!await roles.RoleExistsAsync(technician))

@@ -8,6 +8,7 @@ internal static class DemoSeed
 {
     internal const string Technician = "Alex Morgan";
 
+    // Stable IDs and timestamps let migrations and dashboard tests reproduce the same sample data.
     private static readonly DateTime ReferenceUtc =
         new(2026, 11, 1, 14, 0, 0, DateTimeKind.Utc);
 
@@ -74,12 +75,14 @@ internal static class DemoSeed
                 Summary = row.Summary,
                 Priority = row.Priority,
                 Status = row.Status,
+                Version = 0,
                 AssignedTechnician = row.Status == Open ? null : Technician,
                 CreatedAtUtc = createdAt,
                 ResolvedAtUtc = row.Status == Resolved ? (DateTime?)createdAt.AddHours(2 + id % 4) : null,
             };
         }).ToArray();
 
+        // Rebuild each sample ticket's status timeline from its seeded state.
         var history = new List<TicketEvent>();
         foreach (var ticket in tickets)
         {

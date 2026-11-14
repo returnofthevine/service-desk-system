@@ -1,5 +1,6 @@
 import { formatDate, statusLabels } from '../labels'
 
+// Both portals use the same status labels and preserve UTC values in machine-readable timestamps.
 export function StatusBadge({ status }) {
   return <span className="status" data-status={status}>{statusLabels[status]}</span>
 }
